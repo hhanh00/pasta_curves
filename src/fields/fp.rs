@@ -15,6 +15,7 @@ use crate::arithmetic::{adc, mac, sbb, FieldExt, Group, SqrtRatio};
 
 #[cfg(feature = "sqrt-table")]
 use crate::arithmetic::SqrtTables;
+use serde::{Serializer, Deserializer, Serialize, Deserialize, de};
 
 /// This represents an element of $\mathbb{F}_p$ where
 ///
@@ -767,6 +768,32 @@ impl FieldExt for Fp {
         let tmp = Fp::montgomery_reduce(self.0[0], self.0[1], self.0[2], self.0[3], 0, 0, 0, 0);
 
         u128::from(tmp.0[0]) | (u128::from(tmp.0[1]) << 64)
+    }
+}
+
+impl Serialize for Fp {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.to_repr().as_slice())
+    }
+}
+
+impl <'de> Deserialize<'de> for Fp {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct FpVisitor;
+        impl<'de> de::Visitor<'de> for FpVisitor {
+            type Value = Fp;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Fp")
+            }
+
+            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                let bb: [u8; 32] = v.try_into().unwrap();
+                let p = Fp::from_repr(bb).unwrap();
+                Ok(p)
+            }
+        }
+
+        deserializer.deserialize_bytes(FpVisitor)
     }
 }
 

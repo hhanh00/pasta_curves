@@ -16,6 +16,8 @@ use crate::arithmetic::{adc, mac, sbb, FieldExt, Group, SqrtRatio};
 #[cfg(feature = "sqrt-table")]
 use crate::arithmetic::SqrtTables;
 
+use serde::{Serializer, Deserializer, Serialize, Deserialize, de};
+
 /// This represents an element of $\mathbb{F}_q$ where
 ///
 /// `q = 0x40000000000000000000000000000000224698fc0994a8dd8c46eb2100000001`
@@ -781,6 +783,32 @@ impl ec_gpu::GpuField for Fq {
 
     fn modulus() -> alloc::vec::Vec<u32> {
         crate::fields::u64_to_u32(&MODULUS.0[..])
+    }
+}
+
+impl Serialize for Fq {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.to_repr().as_slice())
+    }
+}
+
+impl <'de> Deserialize<'de> for Fq {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct FqVisitor;
+        impl<'de> de::Visitor<'de> for FqVisitor {
+            type Value = Fq;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Fp")
+            }
+
+            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                let bb: [u8; 32] = v.try_into().unwrap();
+                let p = Fq::from_repr(bb).unwrap();
+                Ok(p)
+            }
+        }
+
+        deserializer.deserialize_bytes(FqVisitor)
     }
 }
 

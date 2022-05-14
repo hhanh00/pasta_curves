@@ -14,6 +14,7 @@ use core::assert;
 use alloc::{boxed::Box, vec::Vec};
 #[cfg(feature = "sqrt-table")]
 use core::marker::PhantomData;
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 const_assert!(size_of::<usize>() >= 4);
 
@@ -96,7 +97,7 @@ pub trait SqrtRatio: ff::PrimeField {
 
 /// This trait is a common interface for dealing with elements of a finite
 /// field.
-pub trait FieldExt: SqrtRatio + From<bool> + Ord + Group<Scalar = Self> {
+pub trait FieldExt: SqrtRatio + From<bool> + Ord + Group<Scalar = Self> + Serialize + DeserializeOwned {
     /// Modulus of the field written as a string for display purposes
     const MODULUS: &'static str;
 

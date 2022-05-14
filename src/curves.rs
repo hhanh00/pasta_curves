@@ -20,6 +20,8 @@ use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 use super::{Fp, Fq};
 use crate::arithmetic::Group;
+use serde::{Serializer, Serialize, Deserializer, Deserialize, de};
+use serde::de::{EnumAccess, Error, MapAccess, SeqAccess};
 
 #[cfg(feature = "alloc")]
 use crate::arithmetic::{Coordinates, CurveAffine, CurveExt, FieldExt};
@@ -1011,6 +1013,58 @@ new_curve_impl!(
     [1265, 0, 0, 0],
     general
 );
+
+impl Serialize for EpAffine {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.to_bytes().as_slice())
+    }
+}
+
+impl Serialize for EqAffine {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(self.to_bytes().as_slice())
+    }
+}
+
+impl <'de> Deserialize<'de> for EpAffine {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct EpAffineVisitor;
+        impl<'de> de::Visitor<'de> for EpAffineVisitor {
+            type Value = EpAffine;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("EpAffine")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E> where E: Error {
+                let bb: [u8; 32] = v.try_into().unwrap();
+                let p = EpAffine::from_bytes(&bb).unwrap();
+                Ok(p)
+            }
+        }
+
+        deserializer.deserialize_bytes(EpAffineVisitor)
+    }
+}
+
+impl <'de> Deserialize<'de> for EqAffine {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct EqAffineVisitor;
+        impl<'de> de::Visitor<'de> for EqAffineVisitor {
+            type Value = EqAffine;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("EqAffine")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E> where E: Error {
+                let bb: [u8; 32] = v.try_into().unwrap();
+                let p = EqAffine::from_bytes(&bb).unwrap();
+                Ok(p)
+            }
+        }
+
+        deserializer.deserialize_bytes(EqAffineVisitor)
+    }
+}
 
 impl Ep {
     /// Constants used for computing the isogeny from IsoEp to Ep.
